@@ -1,5 +1,6 @@
 import { version } from "certlogic-js"
-import { dataAccesses, validateFormat } from "certlogic-validation"
+import { dateFromString } from "certlogic-js/dist/internals"
+import { dataAccesses, validateFormat } from "certlogic-js/dist/validation"
 import { gt } from "semver"
 
 import { readJson } from "./file-utils"
@@ -40,14 +41,22 @@ const validateMetaData = (rule: Rule) => {
     if (gt("0.7.5", rule.EngineVersion)) {
         errors.push(`EngineVersion must be 0.7.5 or newer`)
     }
-    if (rule.ValidTo) {
-        const validFrom = new Date(rule.ValidFrom)
-        const validTo = new Date(rule.ValidTo)
-        if (validFrom > validTo) {
-            errors.push(`ValidFrom must be before after ValidTo`)
+    if (!rule.ValidFrom) {
+        errors.push(`ValidFrom must be defined`)
+    } else {
+        const validFrom = dateFromString(rule.ValidFrom)
+        let nowPlus48hours = new Date()
+        nowPlus48hours.setUTCHours(nowPlus48hours.getUTCHours() + 48)
+        if (nowPlus48hours >= validFrom) {
+            console.warn(`\t[WARNING] a rule's ValidFrom has to be at least 48 hours in the future (at the moment of upload)`)
+        }
+        if (rule.ValidTo) {
+            const validTo = dateFromString(rule.ValidTo)
+            if (validFrom > validTo) {
+                errors.push(`ValidFrom must be before after ValidTo`)
+            }
         }
     }
-
     return errors
 }
 
